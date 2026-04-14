@@ -1,0 +1,21 @@
+// getMe;
+import { Router } from "express";
+
+import { logInAuth } from "../middleware/auth.middleware.js";
+import upload from "../middleware/multer.middleware.js";
+import {
+  allFolders,
+  createFolder,
+  deleteFolder,
+  randomFolder,
+  renameFolder,
+} from "../controllers/folder.controllers.js";
+const folderRoutes = Router();
+
+folderRoutes.get("/randomFolder", randomFolder);
+folderRoutes.post("/createFolder", logInAuth, createFolder);
+folderRoutes.post("/renameFolder/:folder", logInAuth, renameFolder);
+folderRoutes.post("/deleteFolder/:folder", logInAuth, deleteFolder);
+folderRoutes.post("/allFolders", logInAuth, allFolders);
+
+export default folderRoutes;
