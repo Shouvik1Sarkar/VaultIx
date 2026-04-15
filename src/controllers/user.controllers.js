@@ -49,6 +49,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   // }
 
   const myUser = req.user;
+  const userId = req.user._id;
   const updateData = {};
 
   if (firstName !== undefined) updateData.firstName = firstName;
@@ -61,7 +62,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const user = await User.findByIdAndUpdate(myUser._id, updateData, {
     new: true,
   }).select("-password");
-
+  await user.save({ validateBeforeSave: false });
+  await redisClient.del(`user:${userId}`);
   return res.status(200).json(new ApiResponse(200, user, "User updated"));
 });
 
@@ -69,6 +71,7 @@ export const updatePassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword, repeatNewPassword } = req.body;
 
   const myUser = req.user;
+  const userId = req.user._id;
 
   if (!myUser) {
     throw new ApiError(401, "User not Logged In.");
@@ -98,16 +101,17 @@ export const updatePassword = asyncHandler(async (req, res) => {
   user.password = newPassword;
 
   await user.save();
-
+  await redisClient.del(`user:${userId}`);
   return res.status(200).json(new ApiResponse(200, null, "Password Updated"));
 });
 
 export const logOut = asyncHandler(async (req, res) => {
   const user = req.user;
+  const userId = req.user._id;
   if (!user) {
     throw new ApiError(400, "User not loggedIn");
   }
-
+  await redisClient.del(`user:${userId}`);
   return res
     .status(200)
     .clearCookie("accessToken")
@@ -158,10 +162,12 @@ export const changeForgottenPassword = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(400, "Wrong OTP");
   }
+  const userId = user._id;
   user.password = newPassword;
   user.forgotPasswordOtp = undefined;
   user.forgotPasswordOtpExpiry = undefined;
   await user.save();
+  await redisClient.del(`user:${userId}`);
   return res.status(200).json(new ApiResponse(200, null, "Password changed."));
 });
 
