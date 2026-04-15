@@ -27,4 +27,8 @@ export const {
   CLOUDINARY_CLOUD_SECRET,
   ARCJET_KEY,
   ARCJET_ENV,
+
+  //redis url
+  REDIS_URL,
+  REDIS_PASSWORD,
 } = process.env;

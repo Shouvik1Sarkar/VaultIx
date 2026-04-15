@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import asyncHandler from "../utils/asyncHandler.utils.js";
 import { REFRESH_TOKEN_SECRET } from "../../config/env.config.js";
 import jwt from "jsonwebtoken";
+import redisClient from "../../config/redis.config.js";
 
 export const randomUser = asyncHandler(async (req, res) => {
   return res.send("HELLO this is test");
@@ -206,18 +207,64 @@ export const changeForgottenPassword = asyncHandler(async (req, res) => {
 
 /* ***** Get User's own Profile ***** */
 
-export const getMe = asyncHandler(async (req, res) => {
-  const myUser = req.user;
+// with redis
 
-  if (!myUser) {
-    throw new ApiError(401, "Not loggedIn.");
+export const getMe = asyncHandler(async (req, res) => {
+  // Get User Id from req.user._id
+  // cached Key -> 'user:${userId}'
+  // get cached user -> using cachedID,  redisClient
+  // If cached User exists => then send data
+  // get user from Data Base
+  // then objectify -> user.toObject()
+  // delete password from user
+  // set data in redis cache => await redisClient.setEx(cacheKey, 60, JSON.stringify(cleanUser));
+  const userId = req.user._id;
+
+  if (!userId) {
+    throw new ApiError(400, "User not logged In.");
   }
-  const user = await User.findById(myUser._id);
+
+  const cachedKey = `user:${userId}`;
+
+  const cachedUser = await redisClient.get(cachedKey);
+
+  console.log("**********", cachedUser);
+
+  if (cachedUser) {
+    console.log("cached here");
+    return res
+      .status(200)
+      .json(new ApiResponse(200, JSON.parse(cachedUser), "get user"));
+  }
+
+  const user = await User.findById(userId);
+
   if (!user) {
-    throw new ApiError(404, "user not found.");
+    throw new ApiError(401, "USER NOT FOUND");
   }
-  return res.status(200).json(new ApiResponse(200, user, "user"));
+
+  const cleanUser = user.toObject();
+  delete cleanUser.password;
+
+  await redisClient.setEx(cachedKey, 60, JSON.stringify(cleanUser));
+  return res.status(200).json(new ApiResponse(200, cleanUser, "get user"));
 });
+
+// without redis
+// export const getMe = asyncHandler(async (req, res) => {
+//   const myUser = req.user;
+//   const userId = req.user._id;
+//   // cache key
+//   const cacheKey = `user:${userId}`;
+//   if (!myUser) {
+//     throw new ApiError(401, "Not loggedIn.");
+//   }
+//   const user = await User.findById(myUser._id);
+//   if (!user) {
+//     throw new ApiError(404, "user not found.");
+//   }
+//   return res.status(200).json(new ApiResponse(200, user, "user"));
+// });
 
 export const refreshToken = asyncHandler(async (req, res) => {
   const refresh = req.cookies.refreshToken;
