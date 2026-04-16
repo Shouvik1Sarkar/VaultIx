@@ -6,6 +6,7 @@ import ApiResponse from "../utils/ApiResponse.utils.js";
 import asyncHandler from "../utils/asyncHandler.utils.js";
 import ogs from "open-graph-scraper";
 import mongoose from "mongoose";
+import redisClient from "../../config/redis.config.js";
 
 // Functions
 
@@ -52,6 +53,7 @@ export const bookMarkRandoms = asyncHandler(async (req, res) => {
 
 export const save = asyncHandler(async (req, res) => {
   const user = req.user;
+  const userId = req.user._id;
   const { url } = req.body;
   if (!url) {
     throw new ApiError(400, "URL required");
@@ -119,44 +121,111 @@ export const save = asyncHandler(async (req, res) => {
   if (!createBookMark) {
     throw new ApiError(401, "Book Mark not created");
   }
-
+  try {
+    await redisClient.del(`folder:${userId}`);
+    const keys = await redisClient.keys(`urls:${userId}:*`);
+    if (keys.length) {
+      await redisClient.del(keys);
+    }
+    const filterKeys = await redisClient.keys(`filterUrl:${userId}:*`);
+    if (filterKeys.length) {
+      await redisClient.del(filterKeys);
+    }
+  } catch (error) {
+    console.log("REDIS DELETE ERROR", error);
+  }
   res.status(201).json(new ApiResponse(201, createBookMark, "book marked"));
 });
 
 export const all_the_saved_urls = asyncHandler(async (req, res) => {
   const user = req.user;
+  if (!user) {
+    throw new ApiError(401, "User not logged In");
+  }
+  const userId = req.user._id;
   const page = Number(req.query.page) || 1;
   const limit = Math.min(Number(req.query.limit) || 20, 50);
-
+  const cachedKey = `urls:${userId}:page:${page}:limit:${limit}`;
+  let cachedUrl;
+  try {
+    cachedUrl = await redisClient.get(cachedKey);
+  } catch (err) {
+    console.log("Redis error, fallback to DB");
+  }
+  console.log("-------------------------", cachedUrl);
+  if (cachedUrl) {
+    console.log("cached here");
+    return res
+      .status(200)
+      .json(new ApiResponse(200, JSON.parse(cachedUrl), "FOLDERS Cache"));
+  }
   const allUrls = await BookMarked.find({ createdBy: user._id })
     .skip((page - 1) * limit)
     .limit(limit)
     .sort({ createdAt: -1 })
     .populate("folderId", "folderName");
 
-  return res.status(200).json(new ApiResponse(200, allUrls, "All URLs"));
+  const cleanUrl = allUrls.map((f) => f.toObject());
+
+  try {
+    await redisClient.setEx(cachedKey, 60, JSON.stringify(cleanUrl));
+  } catch (err) {
+    console.log("Redis set failed");
+  }
+
+  return res.status(200).json(new ApiResponse(200, cleanUrl, "All URLs"));
 });
 
 export const deleteSavedUrl = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
   const { url_id } = req.params;
 
   if (!url_id) {
     throw new ApiError(400, "URL REQUIRED");
   }
-  const value = await BookMarked.findByIdAndDelete(url_id);
+  const value = await BookMarked.findOneAndDelete({
+    _id: url_id,
+    createdBy: userId,
+  });
   if (!value) {
     throw new ApiError(400, "not found");
   }
+
+  try {
+    await redisClient.del(`folder:${userId}`);
+    const keys = await redisClient.keys(`urls:${userId}:*`);
+    if (keys.length) {
+      await redisClient.del(keys);
+    }
+    const filterKeys = await redisClient.keys(`filterUrl:${userId}:*`);
+    if (filterKeys.length) {
+      await redisClient.del(filterKeys);
+    }
+  } catch (error) {
+    console.log("REDIS DELETE ERROR", error);
+  }
+
   return res.status(200).json(new ApiResponse(200, null, "Deleted"));
 });
 
 export const changeFolder = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  if (!userId) {
+    throw new ApiError(401, "User not found");
+  }
+
   const { bookMarkId, folderId } = req.params;
-  const bookMark = await BookMarked.findById(bookMarkId);
+  const bookMark = await BookMarked.findOne({
+    _id: bookMarkId,
+    createdBy: userId,
+  });
   if (!bookMark) {
     throw new ApiError(404, "BOOKMARK NOT FOUND");
   }
-  const folder = await Folder.findById(folderId);
+  const folder = await Folder.findOne({
+    _id: folderId,
+    createdBy: userId,
+  });
   if (!folder) {
     throw new ApiError(404, "folder NOT FOUND");
   }
@@ -164,7 +233,19 @@ export const changeFolder = asyncHandler(async (req, res) => {
   bookMark.folderId = folder._id;
 
   await bookMark.save();
-
+  try {
+    await redisClient.del(`folder:${userId}`);
+    const keys = await redisClient.keys(`urls:${userId}:*`);
+    if (keys.length) {
+      await redisClient.del(keys);
+    }
+    const filterKeys = await redisClient.keys(`filterUrl:${userId}:*`);
+    if (filterKeys.length) {
+      await redisClient.del(filterKeys);
+    }
+  } catch (error) {
+    console.log("REDIS DELETE ERROR", error);
+  }
   return res
     .status(200)
     .json(new ApiResponse(200, bookMark, "book mark change folder"));
@@ -172,10 +253,25 @@ export const changeFolder = asyncHandler(async (req, res) => {
 
 export const filterByFolder = asyncHandler(async (req, res) => {
   const user = req.user;
+  const userId = req.user._id;
   const { folderId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(folderId)) {
     throw new ApiError(400, "Invalid folder id");
+  }
+  const cachedKey = `filterUrl:${userId}:${folderId}`;
+  let cachedUrl;
+  try {
+    cachedUrl = await redisClient.get(cachedKey);
+  } catch (err) {
+    console.log("Redis error, fallback to DB");
+  }
+
+  if (cachedUrl) {
+    console.log("cached here");
+    return res
+      .status(200)
+      .json(new ApiResponse(200, JSON.parse(cachedUrl), "FOLDERS Cache"));
   }
 
   const folder = await Folder.findOne({
@@ -192,5 +288,13 @@ export const filterByFolder = asyncHandler(async (req, res) => {
     createdBy: user._id,
   }).sort({ createdAt: -1 });
 
-  res.status(200).json(new ApiResponse(200, bookmarks, "Filtered bookmarks"));
+  const cleanUrl = bookmarks.map((f) => f.toObject());
+
+  try {
+    await redisClient.setEx(cachedKey, 60, JSON.stringify(cleanUrl));
+  } catch (err) {
+    console.log("Redis set failed");
+  }
+
+  res.status(200).json(new ApiResponse(200, cleanUrl, "Filtered bookmarks"));
 });

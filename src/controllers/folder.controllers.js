@@ -1,3 +1,4 @@
+import redisClient from "../../config/redis.config.js";
 import BookMarked from "../models/bookMarked.models.js";
 import Folder from "../models/folders.models.js";
 import ApiError from "../utils/ApiError.utils.js";
@@ -9,6 +10,7 @@ export const randomFolder = asyncHandler(async (req, res) => {
 });
 export const createFolder = asyncHandler(async (req, res) => {
   const user = req.user;
+  const userId = req.user._id;
   if (!user) {
     throw new ApiError("Not logged in");
   }
@@ -18,12 +20,13 @@ export const createFolder = asyncHandler(async (req, res) => {
   if (!folder) {
     throw new ApiError("FOLDER NOT CREATED.");
   }
-
+  await redisClient.del(`folder:${userId}`);
   return res.status(201).json(new ApiResponse(201, folder, "This is it"));
 });
 
 export const deleteFolder = asyncHandler(async (req, res) => {
   const user = req.user;
+  const userId = req.user._id;
   const { folder } = req.params;
 
   const findFolder = await Folder.findOne({
@@ -53,12 +56,13 @@ export const deleteFolder = asyncHandler(async (req, res) => {
   );
 
   await Folder.findByIdAndDelete(findFolder._id);
-
+  await redisClient.del(`folder:${userId}`);
   res.status(200).json(new ApiResponse(200, null, "Folder deleted"));
 });
 
 export const renameFolder = asyncHandler(async (req, res) => {
   const user = req.user;
+  const userId = req.user._id;
   const { name } = req.body;
   const { folder } = req.params;
 
@@ -73,7 +77,8 @@ export const renameFolder = asyncHandler(async (req, res) => {
   if (!findFolder) {
     throw new ApiError(404, "Folder not found");
   }
-  await findFolder.save();
+
+  await redisClient.del(`folder:${userId}`);
   res.status(200).json(new ApiResponse(200, findFolder, "Folder renamed"));
 });
 
@@ -83,12 +88,41 @@ export const allFolders = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(400, "User not found.");
   }
+  const userId = req.user._id;
+  const cachedKey = `folder:${userId}`;
+  let cachedFolder;
+  try {
+    cachedFolder = await redisClient.get(cachedKey);
+  } catch (err) {
+    console.log("Redis error, fallback to DB");
+  }
+
+  console.log("**********", cachedFolder);
+
+  if (cachedFolder) {
+    console.log("cached here");
+    return res
+      .status(200)
+      .json(new ApiResponse(200, JSON.parse(cachedFolder), "FOLDERS Cache"));
+  }
 
   const allFolders = await Folder.find({ createdBy: user._id });
 
   if (!allFolders) {
     throw new ApiError(400, "Folders not found");
   }
+
+  const cleanFolder = allFolders.map((folder) => folder.toObject());
+
+  console.log(allFolders[0].constructor.name); // "model"
+
+  console.log(cleanFolder[0].constructor.name); // "object"
+
+  try {
+    await redisClient.setEx(cachedKey, 60, JSON.stringify(cleanFolder));
+  } catch (err) {
+    console.log("Redis set failed");
+  }
   // console.log("FOLDERS: ", allFolders);
-  return res.status(200).json(new ApiResponse(200, allFolders, "FOLDERS"));
+  return res.status(200).json(new ApiResponse(200, cleanFolder, "FOLDERS"));
 });
