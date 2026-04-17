@@ -47,9 +47,9 @@ const getDomain = (url) => {
 
 // Controllers
 
-export const bookMarkRandoms = asyncHandler(async (req, res) => {
-  return res.send("HELLO this is test");
-});
+// export const bookMarkRandoms = asyncHandler(async (req, res) => {
+//   return res.send("HELLO this is test");
+// });
 
 export const save = asyncHandler(async (req, res) => {
   const user = req.user;

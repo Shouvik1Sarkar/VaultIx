@@ -39,9 +39,9 @@ async function createFolders(userId) {
   //   return value;
 }
 
-export const random = asyncHandler(async (req, res) => {
-  return res.send("HELLO this is test");
-});
+// export const random = asyncHandler(async (req, res) => {
+//   return res.send("HELLO this is test");
+// });
 
 export const signUp = asyncHandler(async (req, res, next) => {
   const { firstName, lastName, userName, password, email } = req.body;

@@ -8,5 +8,6 @@ export const db = (url) => {
     })
     .catch((err) => {
       console.error("ERROR CONNECTING MONGODB:", err);
+      throw err;
     });
 };

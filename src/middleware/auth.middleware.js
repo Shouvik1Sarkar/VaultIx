@@ -27,7 +27,7 @@ export async function logInAuth(req, res, next) {
     throw new ApiError(401, "Email not verified");
   }
 
-  req.user = decodedData;
+  req.user = { _id: decodedData._id };
 
   return next();
 }

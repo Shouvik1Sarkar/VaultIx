@@ -5,9 +5,9 @@ import ApiError from "../utils/ApiError.utils.js";
 import ApiResponse from "../utils/ApiResponse.utils.js";
 import asyncHandler from "../utils/asyncHandler.utils.js";
 
-export const randomFolder = asyncHandler(async (req, res) => {
-  return res.send("HELLO this is test");
-});
+// export const randomFolder = asyncHandler(async (req, res) => {
+//   return res.send("HELLO this is test");
+// });
 export const createFolder = asyncHandler(async (req, res) => {
   const user = req.user;
   const userId = req.user._id;
@@ -124,9 +124,9 @@ export const allFolders = asyncHandler(async (req, res) => {
 
   const cleanFolder = allFolders.map((folder) => folder.toObject());
 
-  console.log(allFolders[0].constructor.name); // "model"
+  // console.log(allFolders[0].constructor.name); // "model"
 
-  console.log(cleanFolder[0].constructor.name); // "object"
+  // console.log(cleanFolder[0].constructor.name); // "object"
 
   try {
     await redisClient.setEx(cachedKey, 60, JSON.stringify(cleanFolder));

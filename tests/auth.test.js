@@ -28,12 +28,6 @@ afterAll(async () => {
 }, 15000);
 
 describe("Auth API", () => {
-  test("Should hit a random testing controller.", async () => {
-    const res = await request(app).get("/v1/api/auth/random");
-    expect(res.statusCode).toBe(200);
-    expect(res.text).toBe("HELLO this is test");
-  }, 15000);
-
   it("should register a user", async () => {
     const res = await request(app).post("/v1/api/auth/signUp").send({
       firstName: "test",

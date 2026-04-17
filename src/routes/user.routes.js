@@ -7,7 +7,6 @@ import {
   forgotPasswordOtp,
   getMe,
   logOut,
-  randomUser,
   refreshToken,
   updatePassword,
   updateProfile,
@@ -17,7 +16,7 @@ import upload from "../middleware/multer.middleware.js";
 const userRoutes = Router();
 
 userRoutes.get("/getMe", logInAuth, getMe);
-userRoutes.get("/randomUser", randomUser);
+// userRoutes.get("/randomUser", randomUser);
 
 userRoutes.post(
   "/addOrChangeProfilePicture",

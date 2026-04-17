@@ -81,12 +81,6 @@ afterAll(async () => {
 }, 15000);
 
 describe("Book Mark Apis", () => {
-  test("Should hit a random testing controller.", async () => {
-    const res = await request(app).get("/v1/api/folder/randomFolder");
-    expect(res.statusCode).toBe(200);
-    expect(res.text).toBe("HELLO this is test");
-  }, 15000);
-
   test("Create Folder.", async () => {
     const cookies = await logInUser();
     const res = await request(app)

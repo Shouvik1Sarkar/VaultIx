@@ -161,7 +161,7 @@ Security considerations:
 All routes are prefixed with:
 
 ```
-/api/v1
+  /v1/api
 ```
 
 ### Auth

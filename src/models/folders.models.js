@@ -23,10 +23,10 @@ const folderSchema = new mongoose.Schema(
       default: null,
     },
 
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    // isDeleted: {
+    //   type: Boolean,
+    //   default: false,
+    // },
   },
   { timestamps: true },
 );

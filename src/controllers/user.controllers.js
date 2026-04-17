@@ -12,9 +12,9 @@ import { REFRESH_TOKEN_SECRET } from "../../config/env.config.js";
 import jwt from "jsonwebtoken";
 import redisClient from "../../config/redis.config.js";
 
-export const randomUser = asyncHandler(async (req, res) => {
-  return res.send("HELLO this is test");
-});
+// export const randomUser = asyncHandler(async (req, res) => {
+//   return res.send("HELLO this is test");
+// });
 
 export const addOrChangeProfilePicture = asyncHandler(async (req, res) => {
   const profilePicture = req.file;
@@ -36,7 +36,7 @@ export const addOrChangeProfilePicture = asyncHandler(async (req, res) => {
     profilePicture: cloudinaryPath,
   });
 
-  await user.save({ validateBeforeSave: false });
+  // await user.save({ validateBeforeSave: false });
 
   return res.status(200).json(new ApiResponse(200, user, "User here"));
 });
@@ -62,7 +62,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const user = await User.findByIdAndUpdate(myUser._id, updateData, {
     new: true,
   }).select("-password");
-  await user.save({ validateBeforeSave: false });
+  // await user.save({ validateBeforeSave: false });
   await redisClient.del(`user:${userId}`);
   return res.status(200).json(new ApiResponse(200, user, "User updated"));
 });
@@ -243,14 +243,14 @@ export const getMe = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, JSON.parse(cachedUser), "get user"));
   }
 
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).select("-password -refreshToken");
 
   if (!user) {
     throw new ApiError(401, "USER NOT FOUND");
   }
 
   const cleanUser = user.toObject();
-  delete cleanUser.password;
+  // delete cleanUser.password;
 
   await redisClient.setEx(cachedKey, 60, JSON.stringify(cleanUser));
   return res.status(200).json(new ApiResponse(200, cleanUser, "get user"));

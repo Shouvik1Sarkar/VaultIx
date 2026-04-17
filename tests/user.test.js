@@ -81,12 +81,6 @@ afterAll(async () => {
 }, 15000);
 
 describe("User API", () => {
-  test("Should hit a random testing controller.", async () => {
-    const res = await request(app).get("/v1/api/user/randomUser");
-    expect(res.statusCode).toBe(200);
-    expect(res.text).toBe("HELLO this is test");
-  }, 15000);
-
   test("get my profile", async () => {
     const cookies = await logInUser();
     // console.log("USER LOGGEDIN");
