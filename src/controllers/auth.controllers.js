@@ -93,7 +93,11 @@ export const signUp = asyncHandler(async (req, res, next) => {
   // console.log("----", user.emailVerificationToken);
   // await user.save({ validateBeforeSave: false });
   await user.save();
-  return res.status(201).json(new ApiResponse(201, user, "User created"));
+
+  const safeUser = await User.findById(user._id).select(
+    "-password -refreshToken -emailVerificationToken",
+  );
+  return res.status(201).json(new ApiResponse(201, safeUser, "User created"));
 });
 
 export const sendEmailVerificationOTP = asyncHandler(async (req, res) => {

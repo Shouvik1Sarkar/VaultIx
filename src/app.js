@@ -41,9 +41,9 @@ app.use(helmet());
 // app.use(mongoSanitize());
 
 // wrap this line:
-// if (process.env.NODE_ENV !== "test") {
-//   app.use(arcjetMiddleware);
-// }
+if (process.env.NODE_ENV !== "test") {
+  app.use(arcjetMiddleware);
+}
 
 app.use("/v1/api/auth/", authRoutes);
 app.use("/v1/api/bookMark/", bookMarkedRoutes);

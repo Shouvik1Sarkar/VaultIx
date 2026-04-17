@@ -267,6 +267,8 @@ export const filterByFolder = asyncHandler(async (req, res) => {
     console.log("Redis error, fallback to DB");
   }
 
+  console.log("*********************", cachedUrl);
+
   if (cachedUrl) {
     console.log("cached here");
     return res

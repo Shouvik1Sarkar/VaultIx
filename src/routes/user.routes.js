@@ -29,8 +29,8 @@ userRoutes.post(
 userRoutes.post("/updateProfile", logInAuth, updateProfile);
 userRoutes.post("/updatePassword", logInAuth, updatePassword);
 userRoutes.get("/logOut", logInAuth, logOut);
-userRoutes.post("/forgotPasswordOtp", logInAuth, forgotPasswordOtp);
-userRoutes.post("/changeForgottenPassword", logInAuth, changeForgottenPassword);
+userRoutes.post("/forgotPasswordOtp", forgotPasswordOtp);
+userRoutes.post("/changeForgottenPassword", changeForgottenPassword);
 userRoutes.get("/refreshToken", logInAuth, refreshToken);
 
 export default userRoutes;

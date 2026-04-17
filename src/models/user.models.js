@@ -97,7 +97,7 @@ userSchema.methods.setRefreshToken = async function (id) {
 };
 
 userSchema.methods.generateOTP = function () {
-  const num = Math.floor(100000 + Math.random() * 900000);
+  const num = crypto.randomInt(100000, 999999);
 
   const encryptedOTP = crypto
     .createHash("sha256")

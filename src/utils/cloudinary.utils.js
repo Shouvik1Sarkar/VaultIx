@@ -26,5 +26,6 @@ export async function uploadFile(imagePath) {
     return result.secure_url;
   } catch (error) {
     fs.unlinkSync(imagePath);
+    throw error;
   }
 }

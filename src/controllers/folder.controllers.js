@@ -12,13 +12,13 @@ export const createFolder = asyncHandler(async (req, res) => {
   const user = req.user;
   const userId = req.user._id;
   if (!user) {
-    throw new ApiError("Not logged in");
+    throw new ApiError(401, "Not logged in");
   }
   const { folderName } = req.body;
   const folder = await Folder.create({ folderName, createdBy: user._id });
   // console.log("FOLDER: ", folder);
   if (!folder) {
-    throw new ApiError("FOLDER NOT CREATED.");
+    throw new ApiError(400, "FOLDER NOT CREATED.");
   }
   await redisClient.del(`folder:${userId}`);
   return res.status(201).json(new ApiResponse(201, folder, "This is it"));
@@ -66,20 +66,30 @@ export const renameFolder = asyncHandler(async (req, res) => {
   const { name } = req.body;
   const { folder } = req.params;
 
-  const findFolder = await Folder.findOneAndUpdate(
-    {
-      _id: folder,
-      createdBy: user._id,
-    },
-    { $set: { folderName: name } },
-  );
+  const findFolder = await Folder.findOne({
+    _id: folder,
+    createdBy: user._id,
+  });
 
   if (!findFolder) {
     throw new ApiError(404, "Folder not found");
   }
 
+  if (["all", "video", "article", "post"].includes(findFolder.folderName)) {
+    throw new ApiError(400, "System folder cannot be renamed");
+  }
+
+  const updatedFolder = await Folder.findByIdAndUpdate(
+    folder,
+    { $set: { folderName: name } },
+    { new: true },
+  );
+  if (!updatedFolder) {
+    throw new ApiError(404, "Folder not renamed");
+  }
+
   await redisClient.del(`folder:${userId}`);
-  res.status(200).json(new ApiResponse(200, findFolder, "Folder renamed"));
+  res.status(200).json(new ApiResponse(200, updatedFolder, "Folder renamed"));
 });
 
 export const allFolders = asyncHandler(async (req, res) => {

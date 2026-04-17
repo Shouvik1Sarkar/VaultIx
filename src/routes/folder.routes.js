@@ -15,7 +15,7 @@ const folderRoutes = Router();
 folderRoutes.get("/randomFolder", randomFolder);
 folderRoutes.post("/createFolder", logInAuth, createFolder);
 folderRoutes.post("/renameFolder/:folder", logInAuth, renameFolder);
-folderRoutes.post("/deleteFolder/:folder", logInAuth, deleteFolder);
+folderRoutes.delete("/deleteFolder/:folder", logInAuth, deleteFolder);
 folderRoutes.post("/allFolders", logInAuth, allFolders);
 
 export default folderRoutes;
