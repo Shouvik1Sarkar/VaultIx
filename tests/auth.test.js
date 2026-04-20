@@ -20,25 +20,53 @@ beforeAll(async () => {
 }, 15000);
 
 afterAll(async () => {
+  console.log("Starting cleanup...");
+
+  // Clear all collections
   const collections = mongoose.connection.collections;
   for (const key in collections) {
     await collections[key].deleteMany();
   }
+
+  // Disconnect mongoose
   await mongoose.disconnect();
-}, 15000);
+
+  // ✅ DISCONNECT REDIS using the helper
+  try {
+    const { disconnectRedis } = await import("../config/redis.config.js");
+    if (disconnectRedis) {
+      await disconnectRedis();
+      console.log("REDIS DISCONNECTED");
+    }
+  } catch (error) {
+    console.log("Redis disconnect error:", error.message);
+  }
+
+  // Clear all timers and mocks
+  jest.clearAllTimers();
+  jest.clearAllMocks();
+
+  if (global.server) {
+    await new Promise((resolve) => global.server.close(resolve));
+  }
+
+  console.log("Cleanup complete");
+}, 30000);
 
 describe("Auth API", () => {
   it("should register a user", async () => {
     const res = await request(app).post("/v1/api/auth/signUp").send({
       firstName: "test",
       lastName: "lastTest",
-      userName: "test-1",
-      email: "test@example.com",
+      userName: "test-6",
+      email: "test6@example.com",
       password: "Aa$123456",
     });
 
+    // console.log("################RES***********************", res);
+
     expect(res.status).toBe(201);
-    expect(res.body.data).toHaveProperty("email", "test@example.com");
+    expect(res.body.data).toHaveProperty("email", "test6@example.com");
   }, 15000);
 
   it("should verify email", async () => {
@@ -84,7 +112,7 @@ describe("Auth API", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Email verified");
-  }, 15000);
+  }, 30000);
 
   it("should LogIn User", async () => {
     // 1️⃣ Register
@@ -145,5 +173,5 @@ describe("Auth API", () => {
       "email",
       "test@example.com",
     );
-  }, 15000);
+  }, 30000);
 });

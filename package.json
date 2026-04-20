@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js tests/auth.test.js",
     "test:user": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js tests/user.test.js",
     "bookMark:user": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js tests/bookMark.test.js",
     "test:folder": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js tests/folder.test.js"

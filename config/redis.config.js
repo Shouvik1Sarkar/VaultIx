@@ -11,4 +11,10 @@ redisClient.on("error", (err) => {
 await redisClient.connect();
 console.log("REDIS CONNECTED");
 
+export const disconnectRedis = async () => {
+  if (redisClient.isOpen) {
+    await redisClient.quit();
+  }
+};
+
 export default redisClient;

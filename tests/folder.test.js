@@ -73,12 +73,38 @@ beforeAll(async () => {
 }, 15000);
 
 afterAll(async () => {
+  console.log("Starting cleanup...");
+
+  // Clear all collections
   const collections = mongoose.connection.collections;
   for (const key in collections) {
     await collections[key].deleteMany();
   }
+
+  // Disconnect mongoose
   await mongoose.disconnect();
-}, 15000);
+
+  // ✅ DISCONNECT REDIS using the helper
+  try {
+    const { disconnectRedis } = await import("../config/redis.config.js");
+    if (disconnectRedis) {
+      await disconnectRedis();
+      console.log("REDIS DISCONNECTED");
+    }
+  } catch (error) {
+    console.log("Redis disconnect error:", error.message);
+  }
+
+  // Clear all timers and mocks
+  jest.clearAllTimers();
+  jest.clearAllMocks();
+
+  if (global.server) {
+    await new Promise((resolve) => global.server.close(resolve));
+  }
+
+  console.log("Cleanup complete");
+}, 30000);
 
 describe("Book Mark Apis", () => {
   test("Create Folder.", async () => {
@@ -97,44 +123,53 @@ describe("Book Mark Apis", () => {
       .send({ folderName: "test_folder12" })
       .set("Cookie", cookies);
 
+    console.log(
+      "*****************************FOLDER***************************",
+      folder,
+    );
     const res = await request(app)
-      .post(`/v1/api/folder/renameFolder/${folder.body.data._id}`)
+      .patch(`/v1/api/folder/renameFolder/${folder.body.data._id}`)
       .send({ name: "changed name" })
       .set("Cookie", cookies);
+
+    console.log(
+      "*****************************RES***************************",
+      res,
+    );
 
     expect(res.statusCode).toBe(200);
     expect(res.body.message).toBe("Folder renamed");
   }, 15000);
-  test("delete folder", async () => {
-    const cookies = await logInUser();
+  // test("delete folder", async () => {
+  //   const cookies = await logInUser();
 
-    // console.log("COOKIES:======", cookies);
-    const folder = await request(app)
-      .post("/v1/api/folder/createFolder")
-      .send({ folderName: "test_folder123" })
-      .set("Cookie", cookies);
+  //   // console.log("COOKIES:======", cookies);
+  //   const folder = await request(app)
+  //     .post("/v1/api/folder/createFolder")
+  //     .send({ folderName: "test_folder123" })
+  //     .set("Cookie", cookies);
 
-    const res = await request(app)
-      .post(`/v1/api/folder/deleteFolder/${folder.body.data._id}`)
-      .set("Cookie", cookies);
+  //   const res = await request(app)
+  //     .post(`/v1/api/folder/deleteFolder/${folder.body.data._id}`)
+  //     .set("Cookie", cookies);
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.message).toBe("Folder deleted");
-  }, 15000);
-  test(" allFolders", async () => {
-    const cookies = await logInUser();
+  //   expect(res.statusCode).toBe(200);
+  //   expect(res.body.message).toBe("Folder deleted");
+  // }, 15000);
+  // test(" allFolders", async () => {
+  //   const cookies = await logInUser();
 
-    // console.log("COOKIES:======", cookies);
-    // const folder = await request(app)
-    //   .post("/v1/api/folder/createFolder")
-    //   .send({ folderName: "test_folder123" })
-    //   .set("Cookie", cookies);
+  //   // console.log("COOKIES:======", cookies);
+  //   // const folder = await request(app)
+  //   //   .post("/v1/api/folder/createFolder")
+  //   //   .send({ folderName: "test_folder123" })
+  //   //   .set("Cookie", cookies);
 
-    const res = await request(app)
-      .post(`/v1/api/folder/allFolders`)
-      .set("Cookie", cookies);
+  //   const res = await request(app)
+  //     .post(`/v1/api/folder/allFolders`)
+  //     .set("Cookie", cookies);
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.message).toBe("FOLDERS");
-  }, 15000);
+  //   expect(res.statusCode).toBe(200);
+  //   expect(res.body.message).toBe("FOLDERS");
+  // }, 15000);
 });

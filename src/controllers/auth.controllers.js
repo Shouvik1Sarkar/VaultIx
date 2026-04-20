@@ -75,7 +75,7 @@ export const signUp = asyncHandler(async (req, res, next) => {
   }
   const { num, encryptedOTP } = user.generateOTP();
 
-  mail(user.email, "subject", num.toString());
+  await mail(user.email, "subject", num.toString());
   // if (profilePicture) {
   //   const imagePath = await uploadFile(profilePicture);
   //   if (!imagePath) {
