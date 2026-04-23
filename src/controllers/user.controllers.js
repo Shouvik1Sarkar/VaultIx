@@ -41,60 +41,60 @@ export const addOrChangeProfilePicture = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { firstName, lastName, userName } = req.body;
-
-  // if (!firstname && !lastName && !userName) {
-  //   throw new ApiError(400, "change one");
-  // }
-
   const myUser = req.user;
+
+  if (!myUser) {
+    throw new ApiError(401, "User not Logged In.");
+  }
+
+  const { firstName, lastName, userName } = req.body;
   const userId = req.user._id;
   const updateData = {};
 
   if (firstName !== undefined) updateData.firstName = firstName;
   if (lastName !== undefined) updateData.lastName = lastName;
   if (userName !== undefined) updateData.userName = userName;
-  if (!myUser) {
-    throw new ApiError(401, "User not Logged In.");
-  }
+
+  // if (Object.keys(updateData).length === 0) {
+  //   throw new ApiError(400, "Provide at least one field to update");
+  // }
 
   const user = await User.findByIdAndUpdate(myUser._id, updateData, {
     new: true,
   }).select("-password");
-  // await user.save({ validateBeforeSave: false });
+
   await redisClient.del(`user:${userId}`);
   return res.status(200).json(new ApiResponse(200, user, "User updated"));
 });
 
 export const updatePassword = asyncHandler(async (req, res) => {
-  const { oldPassword, newPassword, repeatNewPassword } = req.body;
-
   const myUser = req.user;
-  const userId = req.user._id;
 
   if (!myUser) {
     throw new ApiError(401, "User not Logged In.");
   }
 
+  const { oldPassword, newPassword, repeatNewPassword } = req.body;
+  const userId = req.user._id;
+
   const user = await User.findById(myUser._id);
 
   if (!user) {
-    throw new ApiError(401, "User not found");
+    throw new ApiError(404, "User not found");
   }
 
   const pass = await user.matchPassword(oldPassword, user.password);
-  // console.log("xxxxx: ", pass);
   if (!pass) {
     throw new ApiError(401, "Password did not match");
   }
+
   const pass2 = await user.matchPassword(newPassword, user.password);
-  // console.log("xxxxx: ", pass);
   if (pass2) {
-    throw new ApiError(401, "not this password");
+    throw new ApiError(400, "New password must be different from old password");
   }
 
   if (newPassword !== repeatNewPassword) {
-    throw new ApiError(401, "new password did not match");
+    throw new ApiError(400, "New passwords do not match");
   }
 
   user.password = newPassword;
@@ -107,9 +107,11 @@ export const updatePassword = asyncHandler(async (req, res) => {
 export const logOut = asyncHandler(async (req, res) => {
   const user = req.user;
   const userId = req.user._id;
+
   if (!user) {
-    throw new ApiError(400, "User not loggedIn");
+    throw new ApiError(401, "User not Logged In");
   }
+
   await redisClient.del(`user:${userId}`);
   return res
     .status(200)
@@ -125,20 +127,13 @@ export const forgotPasswordOtp = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new ApiError(404, "Wrong credentials");
+    throw new ApiError(400, "Wrong credentials");
   }
 
   const { num, encryptedOTP } = await user.generateForgotOTP();
-  // hashed Token is set in the method - generateForgotOTP()
   mail(user.email, "otp", num.toString());
 
-  // console.log("----------", user.forgotPasswordOtp);
-  // forgotPasswordOtp.forgotPasswordOtp = otp;
-  // await forgotPasswordOtp.save();
   await user.save();
-
-  // console.log("OTP: ", encryptedOTP);
-  // console.log("OTP: ", num);
 
   return res.status(200).json(new ApiResponse(200, null, "Otp Sent"));
 });
@@ -215,28 +210,16 @@ export const changeForgottenPassword = asyncHandler(async (req, res) => {
 // with redis
 
 export const getMe = asyncHandler(async (req, res) => {
-  // Get User Id from req.user._id
-  // cached Key -> 'user:${userId}'
-  // get cached user -> using cachedID,  redisClient
-  // If cached User exists => then send data
-  // get user from Data Base
-  // then objectify -> user.toObject()
-  // delete password from user
-  // set data in redis cache => await redisClient.setEx(cacheKey, 60, JSON.stringify(cleanUser));
   const userId = req.user._id;
 
   if (!userId) {
-    throw new ApiError(400, "User not logged In.");
+    throw new ApiError(401, "User not Logged In.");
   }
 
   const cachedKey = `user:${userId}`;
-
   const cachedUser = await redisClient.get(cachedKey);
 
-  console.log("**********", cachedUser);
-
   if (cachedUser) {
-    console.log("cached here");
     return res
       .status(200)
       .json(new ApiResponse(200, JSON.parse(cachedUser), "get user"));
@@ -245,11 +228,10 @@ export const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(userId).select("-password -refreshToken");
 
   if (!user) {
-    throw new ApiError(401, "USER NOT FOUND");
+    throw new ApiError(404, "User not found");
   }
 
   const cleanUser = user.toObject();
-  // delete cleanUser.password;
 
   await redisClient.setEx(cachedKey, 60, JSON.stringify(cleanUser));
   return res.status(200).json(new ApiResponse(200, cleanUser, "get user"));
@@ -277,33 +259,33 @@ export const refreshToken = asyncHandler(async (req, res) => {
   if (!refresh) {
     throw new ApiError(401, "No refresh token");
   }
+
   let decoded;
-  // console.log("REFRESH: ", refresh);
   try {
     decoded = jwt.verify(refresh, REFRESH_TOKEN_SECRET);
   } catch (error) {
-    throw new ApiError(401, "No refresh token");
+    throw new ApiError(401, "Invalid refresh token");
   }
-  // console.log("DECODED: ", decoded);
 
   const encryptedRefreshToken = crypto
     .createHash("sha256")
-    .update(refresh.toString()) // put OTP into hash
+    .update(refresh.toString())
     .digest("hex");
+
   const user = await User.findOne({
     _id: decoded._id,
     refreshToken: encryptedRefreshToken.toString(),
   });
-  // console.log("USER: ", user);
+
   if (!user) {
-    throw new ApiError(401, "Not found user");
+    throw new ApiError(404, "User not found");
   }
 
   const accessToken = await user.setAccessToken(user._id);
 
   if (!accessToken) {
+    throw new ApiError(500, "Failed to generate access token");
   }
-  // console.log("ACCESSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX: ", accessToken);
 
   return res
     .status(200)
