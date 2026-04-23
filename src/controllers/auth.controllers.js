@@ -45,21 +45,21 @@ async function createFolders(userId) {
 
 export const signUp = asyncHandler(async (req, res, next) => {
   const { firstName, lastName, userName, password, email } = req.body;
-  // const profilePicture = req.file;
+
   if (
     [firstName, lastName, userName, password, email].some(
       (e) => e == undefined || e.trim() == "",
     )
   ) {
-    throw new ApiError(401, "All credentials are required");
+    throw new ApiError(400, "All credentials are required");
   }
 
   const existedUser = await User.findOne({
-    $or: [{ email: email }, { userName: userName }],
+    $or: [{ email }, { userName }],
   });
 
   if (existedUser) {
-    throw new ApiError(401, "User already exists. LogIn.");
+    throw new ApiError(409, "User already exists. Log in.");
   }
 
   const user = await User.create({
@@ -71,37 +71,27 @@ export const signUp = asyncHandler(async (req, res, next) => {
   });
 
   if (!user) {
-    throw new ApiError(401, "User not created");
+    throw new ApiError(500, "User not created");
   }
+
   const { num, encryptedOTP } = user.generateOTP();
 
   await mail(user.email, "subject", num.toString());
-  // if (profilePicture) {
-  //   const imagePath = await uploadFile(profilePicture);
-  //   if (!imagePath) {
-  //     throw new ApiError(401, "Image path is not here.");
-  //   }
-  //   user.profilePicture = imagePath;
-  // }
-  // console.log(num);
-  // console.log(encryptedOTP);
 
   const folders = await createFolders(user._id);
-
   user.folders = folders;
-
-  // console.log("----", user.emailVerificationToken);
-  // await user.save({ validateBeforeSave: false });
   await user.save();
 
   const safeUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken",
   );
+
   return res.status(201).json(new ApiResponse(201, safeUser, "User created"));
 });
 
 export const sendEmailVerificationOTP = asyncHandler(async (req, res) => {
   const { email, userName } = req.body;
+
   const user = await User.findOne({
     $or: [{ email }, { userName }],
   });
@@ -109,36 +99,32 @@ export const sendEmailVerificationOTP = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(404, "User does not exist");
   }
+
   if (user.isEmailVerified) {
     throw new ApiError(400, "Email already verified");
   }
 
   const { num, encryptedOTP } = user.generateOTP();
-  console.log(num);
-  // console.log(encryptedOTP);
-
-  // send email
 
   mail(user.email, "subject", num.toString());
 
-  // console.log("----", user.emailVerificationToken);
   await user.save({ validateBeforeSave: false });
 
-  return res.status(201).json(new ApiResponse(201, null, "OTP Sent."));
+  return res.status(200).json(new ApiResponse(200, null, "OTP Sent"));
 });
 
 export const emailVerification = asyncHandler(async (req, res) => {
   const { token } = req.body;
 
   if (!token) {
-    throw new ApiError(500, "No token");
+    throw new ApiError(400, "No token");
   }
+
   const otp = crypto
     .createHash("sha256")
-    .update(token.toString()) // put OTP into hash
+    .update(token.toString())
     .digest("hex");
 
-  // console.log("OTP: ", otp);
   const user = await User.findOne({
     $and: [
       { emailVerificationToken: otp },
@@ -151,7 +137,6 @@ export const emailVerification = asyncHandler(async (req, res) => {
   }
 
   user.isEmailVerified = true;
-
   user.emailVerificationToken = undefined;
   user.emailVerificationTokenExpiry = undefined;
 
@@ -162,23 +147,23 @@ export const emailVerification = asyncHandler(async (req, res) => {
 
 export const logInUser = asyncHandler(async (req, res) => {
   const { userName, email, password } = req.body;
-  // console.log("0000000000000: ", email);
+
   const findUser = await User.findOne({
     $or: [{ email }, { userName }],
   }).select("-emailVerificationToken -forgotPasswordOtp");
 
   if (!findUser) {
-    throw new ApiError(401, "User does not exist");
+    throw new ApiError(404, "User does not exist");
   }
 
   if (!findUser.isEmailVerified) {
-    throw new ApiError(401, "Email not verified");
+    throw new ApiError(403, "Email not verified");
   }
 
   const loggedInUser = await findUser.matchPassword(password);
 
   if (!loggedInUser) {
-    throw new ApiError(401, "wrong password");
+    throw new ApiError(401, "Wrong password");
   }
 
   const accessToken = await findUser.setAccessToken(findUser._id);
@@ -186,11 +171,11 @@ export const logInUser = asyncHandler(async (req, res) => {
 
   const encryptedRefreshToken = crypto
     .createHash("sha256")
-    .update(refreshToken.toString()) // put OTP into hash
+    .update(refreshToken.toString())
     .digest("hex");
 
   await User.findByIdAndUpdate(findUser._id, {
-    refreshToken: encryptedRefreshToken, // raw token, no hashing
+    refreshToken: encryptedRefreshToken,
   });
 
   const userResult = await User.findById(findUser._id).select(
@@ -214,7 +199,7 @@ export const logInUser = asyncHandler(async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     })
-    .json(new ApiResponse(200, { userResult, folders }, "User Logged In"));
+    .json(new ApiResponse(200, { userResult, folders }, "User logged in"));
 });
 
 export const test = asyncHandler(async (req, res) => {
