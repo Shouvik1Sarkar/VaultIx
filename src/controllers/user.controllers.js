@@ -17,26 +17,25 @@ import redisClient from "../../config/redis.config.js";
 // });
 
 export const addOrChangeProfilePicture = asyncHandler(async (req, res) => {
-  const profilePicture = req.file;
-  // console.log("00000: ", profilePicture);
-  if (!profilePicture) {
-    throw new ApiError(401, "Profile picture required");
-  }
-
-  const cloudinaryPath = await uploadFile(profilePicture.path);
-  //   console.log("[[[", cloudinaryPath);
-  //   fs.unlinkSync(profilePicture.path);
   const myUser = req.user;
 
   if (!myUser) {
     throw new ApiError(401, "User not Logged In.");
   }
 
-  const user = await User.findByIdAndUpdate(myUser._id, {
-    profilePicture: cloudinaryPath,
-  });
+  const profilePicture = req.file;
 
-  // await user.save({ validateBeforeSave: false });
+  if (!profilePicture) {
+    throw new ApiError(400, "Profile picture required");
+  }
+
+  const cloudinaryPath = await uploadFile(profilePicture.path);
+
+  const user = await User.findByIdAndUpdate(
+    myUser._id,
+    { profilePicture: cloudinaryPath },
+    { new: true },
+  );
 
   return res.status(200).json(new ApiResponse(200, user, "User here"));
 });
