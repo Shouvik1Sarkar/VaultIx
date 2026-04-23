@@ -218,7 +218,7 @@ export const getMe = asyncHandler(async (req, res) => {
 
   const cachedKey = `user:${userId}`;
   const cachedUser = await redisClient.get(cachedKey);
-
+  console.log("********", cachedUser);
   if (cachedUser) {
     return res
       .status(200)

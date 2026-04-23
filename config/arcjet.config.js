@@ -10,15 +10,10 @@ export const aj = arcjet({
     shield({ mode: "LIVE" }),
 
     tokenBucket({
-      mode: "LIVE", // will block requests. Use "DRY_RUN" to log only
-
-      capacity: 5,
-      refillRate: 5,
-      interval: 60, // 1 token every 12 sec = 5/min
-
-      // refillRate: 10, // refill 5 tokens per interval
-      // interval: 60, // refill every 10 seconds
-      // capacity: 10, // bucket maximum capacity of 10 tokens
+      mode: "LIVE",
+      capacity: 60, // max burst of 60 requests
+      refillRate: 60, // refill 60 tokens
+      interval: 60, // every 60 seconds = 1 req/sec sustained
     }),
     detectBot({
       mode: "LIVE",
